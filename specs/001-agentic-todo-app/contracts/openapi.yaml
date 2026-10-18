@@ -1,0 +1,266 @@
+openapi: 3.1.0
+info:
+  title: Agentic To-Do API
+  version: 1.0.0
+  description: Task CRUD and agent-assisted task operations.
+servers:
+  - url: /
+paths:
+  /api/tasks:
+    get:
+      summary: List tasks
+      responses:
+        '200':
+          description: Tasks in stable list order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/tasks/{task_id}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      summary: Retrieve a task
+      responses:
+        '200':
+          description: Task found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update task fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      summary: Delete a task
+      responses:
+        '204':
+          description: Task deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/assistant:
+    post:
+      summary: Process a natural-language task instruction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: Action result or clarification request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantResult'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/plan/next:
+    get:
+      summary: Suggest the next incomplete task
+      responses:
+        '200':
+          description: A recommendation or an explicit empty result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+  /api/summary:
+    get:
+      summary: Summarize tasks for a calendar date
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: Local calendar date in YYYY-MM-DD form; defaults to today.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Date-specific task summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailySummary'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /:
+    get:
+      summary: Serve the single-page task application
+      responses:
+        '200':
+          description: HTML application page
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  parameters:
+    TaskId:
+      name: task_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    NotFound:
+      description: Task identifier does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Request data is invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Task:
+      type: object
+      required: [id, title, completed, priority, due_date, created_at, completed_at]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+        completed:
+          type: boolean
+        priority:
+          type: string
+          enum: [high, normal, low]
+        due_date:
+          type: [string, 'null']
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+    TaskCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        priority:
+          type: string
+          enum: [high, normal, low]
+          default: normal
+        due_date:
+          type: [string, 'null']
+          format: date
+        completed:
+          type: boolean
+          default: false
+    TaskUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+        completed:
+          type: boolean
+        priority:
+          type: string
+          enum: [high, normal, low]
+        due_date:
+          type: [string, 'null']
+          format: date
+    AssistantResult:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [completed, clarification]
+        message:
+          type: string
+        task:
+          oneOf:
+            - $ref: '#/components/schemas/Task'
+            - type: 'null'
+    Recommendation:
+      type: object
+      required: [task, reason]
+      properties:
+        task:
+          oneOf:
+            - $ref: '#/components/schemas/Task'
+            - type: 'null'
+        reason:
+          type: string
+    DailySummary:
+      type: object
+      required: [date, completed_today, due_today, overdue]
+      properties:
+        date:
+          type: string
+          format: date
+        completed_today:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        due_today:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        overdue:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
