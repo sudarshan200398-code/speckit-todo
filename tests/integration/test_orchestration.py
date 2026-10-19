@@ -20,3 +20,16 @@ def test_assistant_uses_task_agent_for_complete_action(client):
     result = client.post("/api/assistant", json={"text": "complete call mom"}).json()
     assert result["task"]["id"] == task["id"]
     assert result["task"]["completed"] is True
+
+
+def test_unrecognized_text_offers_add_as_task_without_writing(client):
+    result = client.post("/api/assistant", json={"text": "buy groceries on friday"}).json()
+    assert result["status"] == "clarification"
+    assert result["can_add_as_task"] is True
+    assert client.get("/api/tasks").json() == []
+
+
+def test_missing_task_is_not_offered_as_new_task(client):
+    result = client.post("/api/assistant", json={"text": "complete something that does not exist"}).json()
+    assert result["status"] == "clarification"
+    assert result.get("can_add_as_task", False) is False

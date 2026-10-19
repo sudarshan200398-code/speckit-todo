@@ -66,7 +66,11 @@ def parse_request(text: str, today: date | None = None) -> dict[str, Any]:
             payload = value[match.end():]
             break
     if action is None:
-        return {"action": "clarification", "message": "Please start with add, update, complete, reopen, delete, next task, or summary."}
+        return {
+            "action": "clarification",
+            "message": "I didn't recognise a command. Start with add, complete, update, reopen, delete, next task or summary, or add your text as a new task.",
+            "unrecognized": True,
+        }
 
     title, priority, due_date = _metadata(payload, current)
     title = re.sub(r"^(?:a task to|task to|to)\s+", "", title, flags=re.I).strip()

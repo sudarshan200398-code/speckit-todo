@@ -42,7 +42,12 @@ class Orchestrator:
         intent = self._interpret(text)
         action = intent["action"]
         if action == "clarification":
-            return {"status": "clarification", "message": intent.get("message") or "Please clarify the task.", "task": None}
+            return {
+                "status": "clarification",
+                "message": intent.get("message") or "Please clarify the task.",
+                "task": None,
+                "can_add_as_task": bool(intent.get("unrecognized")),
+            }
         if action == "next":
             result = self.planner_agent.suggest_next()
             return {"status": "completed", "message": result["reason"] if result else "There are no pending tasks.", "task": result["task"] if result else None}
