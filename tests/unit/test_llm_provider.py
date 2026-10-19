@@ -59,3 +59,18 @@ def test_provider_selected_only_with_key(monkeypatch):
     assert provider_from_env() is None
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     assert provider_from_env().available is True
+
+
+def test_urgent_wording_sets_high_priority_when_llm_omits_it(repository):
+    content = json.dumps({"action": "create", "title": "call mom", "priority": None, "due_date": "2026-10-24", "message": None})
+    provider = OpenAIIntentProvider(client=FakeClient(content))
+    result = Orchestrator(TaskRepositoryTools(repository), provider=provider).handle(
+        "remind me to call mom before the weekend, it's urgent"
+    )
+    assert result["task"]["title"] == "call mom"
+    assert result["task"]["priority"] == "high"
+
+
+def test_llm_medium_priority_is_accepted_as_normal():
+    content = json.dumps({"action": "create", "title": "Read", "priority": "medium", "due_date": None})
+    assert OpenAIIntentProvider(client=FakeClient(content)).interpret("add read")["priority"] == "normal"

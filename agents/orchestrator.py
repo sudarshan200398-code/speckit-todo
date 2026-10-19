@@ -7,10 +7,14 @@ from typing import Any
 
 from agents.llm_provider import OpenAIIntentProvider
 from agents.planner_agent import PlannerAgent
-from agents.rule_based import parse_request
+import logging
+
+from agents.rule_based import detect_priority, parse_request
 from agents.summary_agent import SummaryAgent
 from agents.task_agent import TaskAgent
 from tools.repository import TaskRepositoryTools
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class Orchestrator:
@@ -34,8 +38,8 @@ class Orchestrator:
                 result = self.provider.interpret(f"Current local date: {self.today.isoformat()}. Request: {text}")
                 self.provider.validate(result)
                 return result
-            except Exception:
-                pass
+            except Exception as error:
+                logger.warning("LLM intent extraction failed, using fallback: %s: %s", type(error).__name__, error)
         return parse_request(text, today=self.today)
 
     def handle(self, text: str) -> dict[str, Any]:
@@ -58,7 +62,10 @@ class Orchestrator:
         if not title:
             return {"status": "clarification", "message": "Which task should I act on?", "task": None}
         if action == "create":
-            planned = self.planner_agent.interpret(title, intent.get("priority"), intent.get("due_date"))
+            priority = intent.get("priority")
+            if priority in (None, "normal") and detect_priority(text):
+                priority = "high"
+            planned = self.planner_agent.interpret(title, priority, intent.get("due_date"))
             task = self.task_agent.create(**planned)
             return {"status": "completed", "message": f"Added {task['title']}.", "task": task}
         existing = self.task_agent.find_by_title(title)

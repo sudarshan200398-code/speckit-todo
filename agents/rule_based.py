@@ -8,7 +8,7 @@ from typing import Any
 
 
 _PRIORITY_PATTERNS = (
-    ("high", re.compile(r"\b(?:high|urgent|important)\s+priority\b|\bpriority\s+(?:high|urgent)\b", re.I)),
+    ("high", re.compile(r"\b(?:high|urgent|important)\s+priority\b|\bpriority\s+(?:high|urgent)\b|\b(?:it'?s\s+)?(?:urgent|asap|critical)\b", re.I)),
     ("low", re.compile(r"\blow\s+priority\b|\bpriority\s+low\b", re.I)),
     ("normal", re.compile(r"\bnormal\s+priority\b|\bpriority\s+normal\b", re.I)),
 )
@@ -80,3 +80,11 @@ def parse_request(text: str, today: date | None = None) -> dict[str, Any]:
     if action == "create":
         return {"action": action, "title": title, "priority": priority or "normal", "due_date": due_date}
     return {"action": action, "title": title, "priority": priority, "due_date": due_date}
+
+
+URGENT_WORDS = re.compile(r"\b(?:urgent|urgently|asap|critical|important|high priority)\b", re.I)
+
+
+def detect_priority(text: str) -> str | None:
+    """Return 'high' when the request clearly signals urgency."""
+    return "high" if URGENT_WORDS.search(text) else None

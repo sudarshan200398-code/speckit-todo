@@ -24,7 +24,7 @@ class OpenAIIntentProvider:
         if client is None:
             from openai import OpenAI
 
-            client = OpenAI(api_key=self.api_key, timeout=10.0, max_retries=0)
+            client = OpenAI(api_key=self.api_key, timeout=10.0, max_retries=2)
             self._client = client
         response = client.chat.completions.create(
             model=self.model,
@@ -37,7 +37,9 @@ class OpenAIIntentProvider:
                         "reopen, delete, next, summary, clarification), title (string or null), priority "
                         "(high, normal, low, or null), due_date (YYYY-MM-DD or null), message (string or null). "
                         "Never claim an action was performed. Use clarification when uncertain. Relative dates "
-                        "use the current local date provided in the user message."
+                        "use the current local date provided in the user message. Words such as urgent, asap, "
+                        "important or critical mean priority high; no rush, whenever or someday mean priority low. "
+                        "Keep the title short, without the date or priority words."
                     ),
                 },
                 {"role": "user", "content": text},
@@ -47,6 +49,8 @@ class OpenAIIntentProvider:
         if not content:
             raise ValueError("provider returned empty output")
         result = json.loads(content)
+        if result.get("priority") == "medium":
+            result["priority"] = "normal"
         self.validate(result)
         return result
 
